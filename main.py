@@ -1,6 +1,6 @@
 from ctypes import Structure, cdll, c_int32, c_void_p, c_char_p, c_float, c_bool, POINTER
 
-lib = cdll.LoadLibrary('./libExampleLib.dylib')
+lib = cdll.LoadLibrary('./PlatformLib.dylib')
 
 lib.startCocoaApplication()
 lib.resizeWindow(800, 200)
