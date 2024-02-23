@@ -1,4 +1,5 @@
 from ctypes import Structure, cdll, c_int32, c_void_p, c_char_p, c_float, c_bool, POINTER
+from time import sleep
 
 lib = cdll.LoadLibrary('./libswift.dylib')
 
@@ -26,7 +27,7 @@ class Color(Structure):
     ]
 
 def draw_rectangle(x, y, width, height, color, filled: bool, fill_color: Color, line_thickness: float):
-    lib.drawRectangle(x, y, width, height, color, 1 if filled is True else 0, fill_color, line_thickness)
+    lib.drawRectangle(x, y, width, height, color, 1 if filled is True else 0, fill_color, c_float(line_thickness))
 
 
 # lib.drawRectangle(0, 0, 800, 200, 1, 0, 0, 1)
@@ -52,12 +53,16 @@ y_pos = 0
 draw_rectangle(x_pos, y_pos, c_float(500), c_float(50), Color(1, 0.5, 0, 0), True, Color(0, 0, 1, 1), 1)
 print("Hi!")
 lib.processEvents()
+cached_x = 0
 while True:
-    lib.processEvents()
+    sleep(0.0001)
     x_pos += 0.01
     y_pos += 0
     # draw_rectangle(x_pos, y_pos, 500, 50, Color(1, 0.5, 0, 1), True, Color(0, 0, 1, 1), 1)
-    draw_rectangle(c_float(x_pos), c_float(y_pos), c_float(500), c_float(50), Color(1, 0.5, 0, 0), True, Color(0, 0, 1, 1), 1)
+    if int(x_pos) != cached_x:
+        cached_x = int(x_pos)
+        draw_rectangle(c_float(x_pos), c_float(y_pos), c_float(500), c_float(50), Color(1, 0.5, 0, 1), True, Color(0, 0, 1, 1), 1)
+        lib.processEvents()
     # poll_events()
     # lib.update()
 

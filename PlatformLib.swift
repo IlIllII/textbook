@@ -8,7 +8,6 @@ public enum EventType: Int {
     case mouseClick = 2
 }
 
-
 var globalPlatformLayer: PlatformLayer?
 var eventQeueue: [Event] = []
 var player: AVAudioPlayer?
@@ -47,15 +46,11 @@ class PlatformLayer: NSObject, NSApplicationDelegate {
             self.window?.setContentSize(NSSize(width: CGFloat(width), height: CGFloat(height)))
         }
     }
-    
+
     func setWindowTitle(_ title: String) {
         DispatchQueue.main.async {
             self.window?.title = title
         }
-    }
-
-    func applicationWillTerminate(_ aNotification: Notification) {
-        // Insert code here to tear down your application
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -111,7 +106,7 @@ class CustomView: NSView {
             print(fillColor)
             guard let context = NSGraphicsContext.current?.cgContext else { return }
             if filled {
-                context.setFillColor(NSColor.red.cgColor)
+                context.setFillColor(fillColor.cgColor)
                 context.fill(rect)
             }
             context.setStrokeColor(outlineColor.cgColor)
@@ -324,7 +319,7 @@ public func drawRectangle(x: Float, y: Float, width: Float, height: Float, outli
         alpha: CGFloat(outlineColor.a)
     )
     DispatchQueue.main.async {
-        globalPlatformLayer?.customView?.drawRectangle(rect: CGRect(x: CGFloat(x), y: CGFloat(y), width: CGFloat(width), height: CGFloat(height)), outlineColor: NSColor.blue, filled: true, fillColor: NSColor.red, lineThickness: CGFloat(lineThickness))
+        globalPlatformLayer?.customView?.drawRectangle(rect: CGRect(x: CGFloat(x), y: CGFloat(y), width: CGFloat(width), height: CGFloat(height)), outlineColor: convertedOutlineColor, filled: true, fillColor: convertedFillColor, lineThickness: CGFloat(lineThickness))
     }
 }
 
