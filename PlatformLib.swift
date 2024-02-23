@@ -32,7 +32,7 @@ class PlatformLayer: NSObject, NSApplicationDelegate {
                           defer: false)
 
         window?.center()
-        window?.title = "Test Window"
+        window?.title = "Untitled Window"
         
         customView = CustomView(frame: window!.contentRect(forFrameRect: window!.frame))
         window?.contentView = customView
@@ -47,6 +47,16 @@ class PlatformLayer: NSObject, NSApplicationDelegate {
         }
     }
 
+    func getWindowWidth() -> Int {
+        let size = window?.contentView?.frame.size
+        return Int(size?.width ?? -1)
+    }
+
+    func getWindowHeight() -> Int {
+        let size = window?.contentView?.frame.size
+        return Int(size?.height ?? -1)
+    }
+
     func setWindowTitle(_ title: String) {
         DispatchQueue.main.async {
             self.window?.title = title
@@ -58,6 +68,7 @@ class PlatformLayer: NSObject, NSApplicationDelegate {
     }
 }
 
+
 class CustomView: NSView {
     var drawingCommands: [() -> Void] = []
 
@@ -67,27 +78,31 @@ class CustomView: NSView {
     }
 
     func drawPath(points: [CGPoint], outlineColor: NSColor, filled: Bool, fillColor: NSColor, lineThickness: CGFloat) {
-        guard let context = NSGraphicsContext.current?.cgContext else { return }
+        addDrawingCommand {
+            guard let context = NSGraphicsContext.current?.cgContext else { return }
 
-        let path = CGMutablePath()
-        if let firstPoint = points.first {
-            path.move(to: firstPoint)
-            for point in points.dropFirst() {
-                path.addLine(to: point)
+            let path = CGMutablePath()
+            if let firstPoint = points.first {
+                path.move(to: firstPoint)
+                for point in points.dropFirst() {
+                    path.addLine(to: point)
+                }
             }
+
+            context.addPath(path)
+
+            if filled {
+                context.setFillColor(fillColor.cgColor)
+                context.saveGState()
+                context.fillPath()
+                context.restoreGState()
+            }
+
+            context.addPath(path)
+            context.setStrokeColor(outlineColor.cgColor)
+            context.setLineWidth(lineThickness)
+            context.strokePath()
         }
-
-        context.addPath(path)
-
-        if filled {
-            context.setFillColor(fillColor.cgColor)
-            context.fillPath()
-        }
-
-        context.setStrokeColor(outlineColor.cgColor)
-        context.setLineWidth(lineThickness)
-        context.addPath(path)
-        context.strokePath()
     }
 
     func drawCircle(center: CGPoint, radius: CGFloat, outlineColor: NSColor, filled: Bool, fillColor: NSColor, lineThickness: CGFloat) {
@@ -101,9 +116,9 @@ class CustomView: NSView {
 
     func drawRectangle(rect: CGRect, outlineColor: NSColor, filled: Bool, fillColor: NSColor, lineThickness: CGFloat) {
         addDrawingCommand {
-            print("Drawing rectangle")
-            print(rect)
-            print(fillColor)
+            // print("Drawing rectangle")
+            // print(rect)
+            // print(fillColor)
             guard let context = NSGraphicsContext.current?.cgContext else { return }
             if filled {
                 context.setFillColor(fillColor.cgColor)
@@ -224,45 +239,16 @@ class CustomView: NSView {
 }
 
 
-// @_cdecl("startCustomRunLoop")
-// public func startCustomRunLoop(callback: @escaping () -> Void) {
-//     DispatchQueue.main.async {
-//         let app = NSApplication.shared
-//         app.setActivationPolicy(.regular)
-//         globalPlatformLayer = PlatformLayer()
-
-//         var shouldKeepRunning = true
-//         while shouldKeepRunning {
-//             let untilDate = Date(timeIntervalSinceNow: 0.01) // Adjust as needed
-//             if let event = app.nextEvent(matching: .any, until: untilDate, inMode: .default, dequeue: true) {
-//                 app.sendEvent(event)
-//             }
-//             // Call back to Python code here
-//             callback()
-//         }
-//     }
-// }
 
 // TODO: Think about API
 @_cdecl("initializePlatformLayer")
 public func initializePlatformLayer() {
-    print("Initializing platform layer")
     DispatchQueue.main.async {
         if globalPlatformLayer == nil {
             globalPlatformLayer = PlatformLayer()
-            globalPlatformLayer?.applicationDidFinishLaunching(Notification(name: Notification.Name("What")))
+            globalPlatformLayer?.applicationDidFinishLaunching(Notification(name: Notification.Name("")))
         }
     }
-    print("Platform layer initialized")
-    // DispatchQueue.global(qos: .background).async {
-    //     let app = NSApplication.shared
-    //     app.setActivationPolicy(.regular)
-
-    //     DispatchQueue.main.async {
-    //         globalPlatformLayer = PlatformLayer()
-    //     }
-    //     app.run()
-    // }
 }
 
 @_cdecl("resizeWindow")
@@ -270,6 +256,16 @@ public func resizeWindow(width: Int32, height: Int32) {
     DispatchQueue.main.async {
         globalPlatformLayer?.resizeWindow(width: Int(width), height: Int(height))
     }
+}
+
+@_cdecl("getWindowWidth")
+public func getWindowWidth() -> Int32 {
+    return Int32(globalPlatformLayer?.getWindowWidth() ?? -1)
+}
+
+@_cdecl("getWindowHeight")
+public func getWindowHeight() -> Int32 {
+    return Int32(globalPlatformLayer?.getWindowHeight() ?? -1)
 }
 
 @_cdecl("setWindowTitle")
@@ -389,7 +385,7 @@ public func renderText(text: UnsafePointer<CChar>, x: Float, y: Float, color: Py
 }
 
 @_cdecl("drawPath")
-public func drawPath(points: UnsafeMutablePointer<CGPoint>, count: Int32, outlineColor: PythonColor, filled: Int32, fillColor: PythonColor, lineThickness: Float) {
+public func drawPath(points: UnsafeMutablePointer<PythonPoint>, count: Int32, outlineColor: PythonColor, filled: Int32, fillColor: PythonColor, lineThickness: Float) {
     let convertedFillColor = NSColor(
         red: CGFloat(fillColor.r),
         green: CGFloat(fillColor.g),
@@ -403,8 +399,13 @@ public func drawPath(points: UnsafeMutablePointer<CGPoint>, count: Int32, outlin
         alpha: CGFloat(outlineColor.a)
     )
     let swiftPoints = Array(UnsafeBufferPointer(start: points, count: Int(count)))
+    let swiftyPoints = swiftPoints.map { CGPoint(x: CGFloat($0.x), y: CGFloat($0.y)) }
+
+    for point in swiftyPoints {
+        print(point)
+    }
     DispatchQueue.main.async {
-        globalPlatformLayer?.customView?.drawPath(points: swiftPoints, outlineColor: convertedOutlineColor, filled: filled == 1, fillColor: convertedFillColor, lineThickness: CGFloat(lineThickness))
+        globalPlatformLayer?.customView?.drawPath(points: swiftyPoints, outlineColor: convertedOutlineColor, filled: filled == 1, fillColor: convertedFillColor, lineThickness: CGFloat(lineThickness))
     }
 }
 
