@@ -2,7 +2,7 @@ SWIFTC=swiftc
 HEADER_PATH=
 OUT_LIB=libswift.dylib
 SWIFT_SRC=PlatformLib.swift
-C_HEADERS=EventStruct.h
+C_HEADERS=InteropStructs.h
 FLAGS=-import-objc-header $(C_HEADERS) -emit-library
 
 all: $(OUT_LIB)
